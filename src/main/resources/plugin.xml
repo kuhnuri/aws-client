@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="com.elovirta.kuhnuri.client">
+  <feature extension="dita.conductor.lib.import" file="lib/client.jar"/>
+  <feature extension="ant.import" file="build.xml"/>
+  <transtype name="aws-html5"/>
+</plugin>

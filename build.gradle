@@ -1,0 +1,47 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+group = 'com.elovirta.kuhnuri'
+version = '0.1.0'
+
+description = """DITA Open Toolkit Batch client"""
+
+repositories {
+    mavenCentral()
+}
+dependencies {
+    compile group: 'org.apache.ant', name: 'ant', version:'1.10.5'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.8'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.8'
+}
+
+jar.archiveName = "${project.name}.jar"
+
+task dist(type: Zip) {
+    from(configurations.runtime.allArtifacts.files) {
+        into "lib"
+    }
+//    from(configurations.runtime) {
+//        include { details -> details.file.name.contains('flexmark') }
+//        exclude { details -> details.file.name.contains('flexmark-all') }
+//        exclude { details -> details.file.name.contains('flexmark-ext-emoji') }
+//        exclude { details -> details.file.name.contains('flexmark-ext-gfm-issues') }
+//        exclude { details -> details.file.name.contains('flexmark-ext-gfm-users') }
+//        exclude { details -> details.file.name.contains('flexmark-ext-xwiki-macros') }
+//        exclude { details -> details.file.name.contains('flexmark-pdf') }
+//        include { details -> details.file.name.contains('autolink') }
+//        include { details -> details.file.name.contains('htmlparser') }
+//        into "lib"
+//    }
+    from("src/main/resources") {
+        include "plugin.xml"
+        expand(
+                id: project.name,
+                version: project.version
+        )
+    }
+    from("src/main/resources") {
+        include "build.xml"
+    }
+    archiveName "${project.name}-${project.version}.zip"
+}

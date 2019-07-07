@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <target name="dita2aws-html5.init">
+    <taskdef name="client" classname="com.elovirta.kuhnuri.client.ClientTask"/>
+  </target>
+  <target name="dita2aws-html5" depends="dita2aws-html5.init, build-init">
+    <dirname property="args.input.dir" file="${args.input}"/>
+    <basename property="args.input.name" file="${args.input}"/>
+    <zip destfile="${dita.temp.dir}/package.zip" basedir="${args.input.dir}"/>
+    <client api="https://l3ckjwolqf.execute-api.eu-west-1.amazonaws.com/prod/api/v1/"
+            zip="${dita.temp.dir}/package.zip"
+            start="${args.input.name}"
+            transtype="html5"/>
+  </target>
+</project>
