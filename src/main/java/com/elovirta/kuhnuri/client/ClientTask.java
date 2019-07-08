@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
-import org.apache.tools.ant.Task;
+import org.apache.tools.ant.taskdefs.MatchingTask;
+import org.apache.tools.ant.taskdefs.Zip;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,12 +21,13 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-public class ClientTask extends Task {
+public class ClientTask extends MatchingTask {
     private HttpClient client;
-    private File zip;
+    private File input;
     private String start;
     private URI api;
     private String transtype;
+    private File tempDir;
 
     @Override
     public void init() throws BuildException {
@@ -35,8 +37,9 @@ public class ClientTask extends Task {
     @Override
     public void execute() throws BuildException {
         try {
+            var zip = createPackage();
             var upload = getUpload();
-            doUpload(upload.upload);
+            doUpload(zip, upload.upload);
             var create = getCreate(upload.url);
             var job = doCreate(create);
             log(job.status, Project.MSG_INFO);
@@ -44,6 +47,16 @@ public class ClientTask extends Task {
             throw new BuildException(e);
         }
 
+    }
+
+    private File createPackage() {
+        var destFile = new File(tempDir, "package.zip");
+        var zipTask = new Zip();
+        zipTask.setProject(getProject());
+        zipTask.setDestFile(destFile);
+        zipTask.setBasedir(input.getParentFile());
+        zipTask.execute();
+        return destFile;
     }
 
     private Job doCreate(final Create create) throws IOException, InterruptedException {
@@ -74,8 +87,8 @@ public class ClientTask extends Task {
         return new ObjectMapper().readerFor(Upload.class).readValue(response.body());
     }
 
-    private void doUpload(final URI url) throws IOException, InterruptedException {
-        log("Do upload " + url, Project.MSG_INFO);
+    private void doUpload(final File zip, final URI url) throws IOException, InterruptedException {
+        log("Upload " + zip + " to " + url, Project.MSG_INFO);
         var upload = HttpRequest.newBuilder()
                 .uri(url)
                 .timeout(Duration.ofMinutes(2))
@@ -96,8 +109,8 @@ public class ClientTask extends Task {
         }
     }
 
-    public void setZip(final File zip) {
-        this.zip = zip;
+    public void setInput(final File input) {
+        this.input = input;
     }
 
     public void setStart(final String start) {
@@ -106,6 +119,10 @@ public class ClientTask extends Task {
 
     public void setTranstype(final String transtype) {
         this.transtype = transtype;
+    }
+
+    public void setTemp(final File tempDir) {
+        this.tempDir = tempDir;
     }
 
     public static class Job {

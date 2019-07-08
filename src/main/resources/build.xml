@@ -4,12 +4,12 @@
     <taskdef name="client" classname="com.elovirta.kuhnuri.client.ClientTask"/>
   </target>
   <target name="dita2aws-html5" depends="dita2aws-html5.init, build-init">
-    <dirname property="args.input.dir" file="${args.input}"/>
-    <basename property="args.input.name" file="${args.input}"/>
-    <zip destfile="${dita.temp.dir}/package.zip" basedir="${args.input.dir}"/>
+    <!--dirname property="args.input.dir" file="${args.input}"/-->
     <client api="https://l3ckjwolqf.execute-api.eu-west-1.amazonaws.com/prod/api/v1/"
-            zip="${dita.temp.dir}/package.zip"
-            start="${args.input.name}"
-            transtype="html5"/>
+            temp="${dita.temp.dir}"
+            input="${args.input}"
+            transtype="html5">
+      <!--fileset dir="${args.input.dir}"/-->
+    </client>
   </target>
 </project>
