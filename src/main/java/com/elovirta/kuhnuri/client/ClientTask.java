@@ -24,7 +24,6 @@ import java.util.List;
 public class ClientTask extends MatchingTask {
     private HttpClient client;
     private File input;
-    private String start;
     private URI api;
     private String transtype;
     private File tempDir;
@@ -98,7 +97,7 @@ public class ClientTask extends MatchingTask {
     }
 
     private Create getCreate(final URI uri) {
-        return new Create(String.format("jar:%s!/%s", uri, start), Arrays.asList(transtype));
+        return new Create(String.format("jar:%s!/%s", uri, input.getName()), Arrays.asList(transtype));
     }
 
     public void setApi(final String api) {
@@ -111,10 +110,6 @@ public class ClientTask extends MatchingTask {
 
     public void setInput(final File input) {
         this.input = input;
-    }
-
-    public void setStart(final String start) {
-        this.start = start;
     }
 
     public void setTranstype(final String transtype) {
