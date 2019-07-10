@@ -1,6 +1,8 @@
 package com.elovirta.kuhnuri.client;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.elovirta.kuhnuri.client.api.Create;
+import com.elovirta.kuhnuri.client.api.Job;
+import com.elovirta.kuhnuri.client.api.Upload;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.tools.ant.BuildException;
@@ -17,9 +19,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.List;
 
 public class ClientTask extends MatchingTask {
     private HttpClient client;
@@ -36,21 +38,22 @@ public class ClientTask extends MatchingTask {
     @Override
     public void execute() throws BuildException {
         try {
-            var zip = createPackage();
-            var upload = getUpload();
+            final var zip = createPackage();
+            final var upload = getUpload();
             doUpload(zip, upload.upload);
-            var create = getCreate(upload.url);
-            var job = doCreate(create);
-            log(job.status, Project.MSG_INFO);
+            final var create = getCreate(upload.url);
+            final var job = doCreate(create);
+            log(job.status);
         } catch (IOException | InterruptedException e) {
             throw new BuildException(e);
         }
 
     }
 
-    private File createPackage() {
-        var destFile = new File(tempDir, "package.zip");
-        var zipTask = new Zip();
+    private File createPackage() throws IOException {
+        final var destFile = Files.createTempFile(tempDir.toPath(), "package", ".zip").toFile();
+        final var zipTask = new Zip();
+        zipTask.setTaskName("zip");
         zipTask.setProject(getProject());
         zipTask.setDestFile(destFile);
         zipTask.setBasedir(input.getParentFile());
@@ -61,34 +64,35 @@ public class ClientTask extends MatchingTask {
     private Job doCreate(final Create create) throws IOException, InterruptedException {
         final var body = new ObjectMapper().writerFor(Create.class).writeValueAsBytes(create);
         final var createUri = api.resolve("job");
-        log("Do create " + createUri, Project.MSG_INFO);
+        log(String.format("Do create %s", createUri));
         final var upload = HttpRequest.newBuilder()
                 .uri(createUri)
                 .timeout(Duration.ofMinutes(2))
                 .POST(BodyPublishers.ofByteArray(body))
                 .build();
         final var response = client.send(upload, BodyHandlers.ofString(StandardCharsets.UTF_8));
-        log(response.body(), Project.MSG_INFO);
+        log(response.body());
         return new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false).readerFor(Job.class)
                 .readValue(response.body());
     }
 
     private Upload getUpload() throws IOException, InterruptedException {
         final var createUri = api.resolve("upload");
-        log("Get upload " + createUri, Project.MSG_INFO);
+        log(String.format("Get upload %s", createUri));
         final var request = HttpRequest.newBuilder()
                 .uri(createUri)
                 .timeout(Duration.ofMinutes(1))
                 .GET()
                 .build();
         final var response = client.send(request, BodyHandlers.ofString(StandardCharsets.UTF_8));
-        log(response.body(), Project.MSG_INFO);
+        log(response.body());
         return new ObjectMapper().readerFor(Upload.class).readValue(response.body());
     }
 
     private void doUpload(final File zip, final URI url) throws IOException, InterruptedException {
-        log("Upload " + zip + " to " + url, Project.MSG_INFO);
-        var upload = HttpRequest.newBuilder()
+        log(String.format("Upload %s", zip));
+        log(String.format("Upload %s to %s", zip, url), Project.MSG_VERBOSE);
+        final var upload = HttpRequest.newBuilder()
                 .uri(url)
                 .timeout(Duration.ofMinutes(2))
                 .PUT(BodyPublishers.ofFile(zip.toPath()))
@@ -97,8 +101,13 @@ public class ClientTask extends MatchingTask {
     }
 
     private Create getCreate(final URI uri) {
-        return new Create(String.format("jar:%s!/%s", uri, input.getName()), Arrays.asList(transtype));
+        return new Create(getJarUri(uri, input.getName()), Arrays.asList(transtype));
     }
+
+    private String getJarUri(final URI uri, final String path) {
+        return String.format("jar:%s!/%s", uri, path);
+    }
+
 
     public void setApi(final String api) {
         try {
@@ -120,34 +129,4 @@ public class ClientTask extends MatchingTask {
         this.tempDir = tempDir;
     }
 
-    public static class Job {
-        public final String status;
-
-        public Job(@JsonProperty("status") final String status) {
-            this.status = status;
-        }
-    }
-
-    public static class Upload {
-        public final URI url;
-        public final URI upload;
-
-        public Upload(@JsonProperty("url") final String url,
-                      @JsonProperty("upload") final String upload) {
-            this.url = URI.create(url);
-            this.upload = URI.create(upload);
-        }
-    }
-
-    public static class Create {
-        @JsonProperty("input")
-        public final URI input;
-        @JsonProperty("transtype")
-        public final List<String> transtype;
-
-        public Create(final String input, final List<String> transtype) {
-            this.input = URI.create(input);
-            this.transtype = transtype;
-        }
-    }
 }
