@@ -17,9 +17,9 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
 
@@ -42,16 +42,35 @@ public class ClientTask extends MatchingTask {
             final var upload = getUpload();
             doUpload(zip, upload.upload);
             final var create = getCreate(upload.url);
-            final var job = doCreate(create);
+            var job = doCreate(create);
+            final var id = job.id;
+            final var start = System.currentTimeMillis();
             log(job.status);
+            while (true) {
+                Thread.sleep(5000);
+                job = getJob(id);
+                var duration = Duration.ofMillis(System.currentTimeMillis() - start);
+                switch (job.status) {
+                    case "queue":
+                    case "process":
+                        log(job.status + " " + (duration.getSeconds()));
+                        break;
+                    case "done":
+                    case "error":
+                        log(job.status + " " + (duration.getSeconds()));
+                        return;
+                    default:
+                        throw new IllegalArgumentException(job.status);
+                }
+            }
         } catch (IOException | InterruptedException e) {
             throw new BuildException(e);
         }
 
     }
 
-    private File createPackage() throws IOException {
-        final var destFile = Files.createTempFile(tempDir.toPath(), "package", ".zip").toFile();
+    private File createPackage() {
+        final var destFile = new File(tempDir, "package.zip");
         final var zipTask = new Zip();
         zipTask.setTaskName("zip");
         zipTask.setProject(getProject());
@@ -64,14 +83,28 @@ public class ClientTask extends MatchingTask {
     private Job doCreate(final Create create) throws IOException, InterruptedException {
         final var body = new ObjectMapper().writerFor(Create.class).writeValueAsBytes(create);
         final var createUri = api.resolve("job");
-        log(String.format("Do create %s", createUri));
+        log(String.format("Do create %s", createUri), Project.MSG_VERBOSE);
         final var upload = HttpRequest.newBuilder()
                 .uri(createUri)
                 .timeout(Duration.ofMinutes(2))
                 .POST(BodyPublishers.ofByteArray(body))
                 .build();
         final var response = client.send(upload, BodyHandlers.ofString(StandardCharsets.UTF_8));
-        log(response.body());
+        log(response.body(), Project.MSG_VERBOSE);
+        return new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false).readerFor(Job.class)
+                .readValue(response.body());
+    }
+
+    private Job getJob(final String id) throws IOException, InterruptedException {
+        final var jobUri = api.resolve("job/" + id);
+        log(String.format("Get job %s", id));
+        final var upload = HttpRequest.newBuilder()
+                .uri(jobUri)
+                .timeout(Duration.ofMinutes(2))
+                .GET()
+                .build();
+        final var response = client.send(upload, BodyHandlers.ofString(StandardCharsets.UTF_8));
+        log(response.body(), Project.MSG_VERBOSE);
         return new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false).readerFor(Job.class)
                 .readValue(response.body());
     }
@@ -85,7 +118,7 @@ public class ClientTask extends MatchingTask {
                 .GET()
                 .build();
         final var response = client.send(request, BodyHandlers.ofString(StandardCharsets.UTF_8));
-        log(response.body());
+        log(response.body(), Project.MSG_VERBOSE);
         return new ObjectMapper().readerFor(Upload.class).readValue(response.body());
     }
 
@@ -97,7 +130,10 @@ public class ClientTask extends MatchingTask {
                 .timeout(Duration.ofMinutes(2))
                 .PUT(BodyPublishers.ofFile(zip.toPath()))
                 .build();
-        client.send(upload, BodyHandlers.discarding());
+        final HttpResponse<String> send = client.send(upload, BodyHandlers.ofString());
+        if (send.statusCode() != 200) {
+            throw new BuildException(send.body());
+        }
     }
 
     private Create getCreate(final URI uri) {
