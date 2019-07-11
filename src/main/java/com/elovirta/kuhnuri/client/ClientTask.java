@@ -13,7 +13,6 @@ import org.apache.tools.ant.taskdefs.Zip;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
@@ -32,6 +31,7 @@ public class ClientTask extends MatchingTask {
 
     @Override
     public void init() throws BuildException {
+        api = URI.create(getProject().getProperty("kuhnuri.api"));
         client = HttpClient.newBuilder().build();
     }
 
@@ -142,15 +142,6 @@ public class ClientTask extends MatchingTask {
 
     private String getJarUri(final URI uri, final String path) {
         return String.format("jar:%s!/%s", uri, path);
-    }
-
-
-    public void setApi(final String api) {
-        try {
-            this.api = new URI(api);
-        } catch (URISyntaxException e) {
-            throw new BuildException(e);
-        }
     }
 
     public void setInput(final File input) {

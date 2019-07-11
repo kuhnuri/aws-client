@@ -5,8 +5,7 @@
   </target>
   <target name="dita2aws-html5" depends="dita2aws-html5.init, build-init">
     <!--dirname property="args.input.dir" file="${args.input}"/-->
-    <client api="https://l3ckjwolqf.execute-api.eu-west-1.amazonaws.com/prod/api/v1/"
-            temp="${dita.temp.dir}"
+    <client temp="${dita.temp.dir}"
             input="${args.input}"
             transtype="html5">
       <!--fileset dir="${args.input.dir}"/-->
