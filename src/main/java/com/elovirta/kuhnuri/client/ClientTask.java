@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Redirect;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
@@ -32,7 +33,7 @@ public class ClientTask extends MatchingTask {
     @Override
     public void init() throws BuildException {
         api = URI.create(getProject().getProperty("kuhnuri.api"));
-        client = HttpClient.newBuilder().build();
+        client = HttpClient.newBuilder().followRedirects(Redirect.NORMAL).build();
     }
 
     @Override
